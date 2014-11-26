@@ -11,35 +11,42 @@ class MyAgent(Agent):
         # select a subset of nodes (up to budget) to seed at current time step t
         # nodes in the network are selected *** BY THEIR INDEX ***
 
-        selected = set() # this is compatible with [] and provides reasonably fast set operations.
+        # python's built in sets provide reasonably fast and easy to write set operations.
+        selected = set()
 
-        # your code goes here
-
-        # initialize sets of influenced (covered) and uninfluenced (uncovered) nodes
-        uncovered = set(range(network.size()))
+        # initialize sets of unselected and already-covered nodes
+        unselected = set(range(network.size()))
         covered = set()
 
+        # loop selecting one node at each iteration (up to a budget)
         for b in range(self.budget):
             maxsize = 0
             maxnode = -1
             maxset = set()
 
-            for i in uncovered:
-               iset = set(network.getNeighbors(i)) - selected
-               isize = len(iset)
+            # greedily choose a node maximizing number of neighbors not currently covered
+            for i in unselected:
+                iset = set(network.getNeighbors(i)) - covered
+                isize = len(iset)
 
-               if isize > maxsize:
-                   maxsize = isize
-                   maxnode = i
-                   maxset = iset
+                if (isize > maxsize):
+                    maxsize = isize
+                    maxnode = i
+                    maxset = iset
 
+            # move node from unselected to selected list
             selected.add(maxnode)
-            uncovered.remove(maxnode)
+            unselected.remove(maxnode)
+
+            # mark selected node and its neighbors as covered
             covered.add(maxnode)
-            uncovered -= maxset
             covered |= maxset
 
-        return selected
+            # it's worth noting that we don't remove the selected node's neighbors from the unselected set.
+            # this allows some covered nodes to be possible future selections
+
+        # return a list to maintain consistency with skeleton code (although returning the set also works)
+        return list(selected)
         
     def display():
         print "Agent ID ", self.id
