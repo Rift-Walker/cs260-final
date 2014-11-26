@@ -10,16 +10,34 @@ class MyAgent(Agent):
     def selectNodes(self, network, t):
         # select a subset of nodes (up to budget) to seed at current time step t
         # nodes in the network are selected *** BY THEIR INDEX ***
-        selected = []
 
         # your code goes here
-        nmax = 0
-        for n in network.nodes:
-            if not n.adopted():
-                
+        uncovered = set(range(network.size()))
+        recruited = set()
+        covered = set()
+
+        for b in range(self.budget):
+            maxsize = 0
+            maxnode = -1
+            maxset = set()
+
+            for i in uncovered:
+               iset = set(network.getNeighbors(i)) - covered
+               isize = len(iset)
+
+               if isize > maxsize:
+                   maxsize = isize
+                   maxnode = i
+                   maxset = iset
+
+            recruited.add(maxnode)
+            uncovered.remove(maxnode)
+            covered.add(maxnode)
+            uncovered -= maxset
+            covered |= maxset
+
+        return recruited
         
-        return selected
-    
     def display():
         print "Agent ID ", self.id
 
