@@ -4,6 +4,7 @@
 # otherwise your agent will fail
 
 from agent import Agent
+import copy
     
 class MyAgent(Agent):
 
@@ -23,16 +24,33 @@ class MyAgent(Agent):
             maxsize = 0
             maxnode = -1
             maxset = set()
+            topsizes = [0,0,0]
+            topnodes = [-1,-1,-1]
+            topsets = [set(), set(), set()]
+            
 
             # greedily choose a node maximizing number of neighbors not currently covered
             for i in unselected:
                 iset = set(network.getNeighbors(i)) - covered
                 isize = len(iset)
 
-                if (isize > maxsize):
-                    maxsize = isize
-                    maxnode = i
-                    maxset = iset
+                for j in range(len(topsizes)):
+                    if isize > topsizes[j]:
+                        topsizes[j] = isize
+                        topnodes[j] = i
+                        topsets[j] = iset
+                        break
+                
+
+            umax = 0;
+            for i in range(len(topnodes)):
+                network.update(topsets[i])
+                newnet = copy.deepcopy(this)
+                newnet.budget-- 
+               # if (isize > maxsize):
+               #     maxsize = isize
+               #     maxnode = i
+               #     maxset = iset
 
             # move node from unselected to selected list
             selected.add(maxnode)
