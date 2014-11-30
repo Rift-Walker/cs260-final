@@ -8,13 +8,36 @@ import copy
     
 class MyAgent(Agent):
 
-    def selectNodes(self, network, t):
-        # select a subset of nodes (up to budget) to seed at current time step t
-        # nodes in the network are selected *** BY THEIR INDEX ***
+    def rec(self, network, unselected, covered, upperBound, budget):
+
+        if budget == 0:
+            return []
+        #priority = sorted(unselected, key=lambda i: len(set([item for sublist in (map(network.getNeighbors, network.getNeighbors(i))) for item in sublist])), reverse=False)
+        priority = sorted(unselected, key=lambda i: len(set(network.getNeighbors(i)) - covered), reverse=True)
+        #priorities = map(lambda i: len(set(network.getNeighbors(i)) - covered), priority)
+        #print(priorities)
+        maxutil = 0
+        maxret = []
+        for i in xrange(2):
+            pick = priority[i]
+            irec = self.rec(network, \
+                            unselected - set([pick]), \
+                            covered | set([pick]) | set(network.getNeighbors(pick)), \
+                            budget - 1) 
+            iret = [pick] + irec
+            #iutil = len(set([item for sublist in map(network.getNeighbors, iret) for item in sublist]) - covered)
+            iutil = float(network.update(iret))
+            if (iutil > maxutil):
+                maxret = iret
+                maxutil = iutil
+            network.reverse()
+                
+        return maxret
+
+     def greedy(self, network):
 
         # python's built in sets provide reasonably fast and easy to write set operations.
         selected = set()
-
         # initialize sets of unselected and already-covered nodes
         unselected = set(range(network.size()))
         covered = set()
@@ -24,33 +47,16 @@ class MyAgent(Agent):
             maxsize = 0
             maxnode = -1
             maxset = set()
-            topsizes = [0,0,0]
-            topnodes = [-1,-1,-1]
-            topsets = [set(), set(), set()]
-            
-
+ 
             # greedily choose a node maximizing number of neighbors not currently covered
             for i in unselected:
                 iset = set(network.getNeighbors(i)) - covered
                 isize = len(iset)
 
-                for j in range(len(topsizes)):
-                    if isize > topsizes[j]:
-                        topsizes[j] = isize
-                        topnodes[j] = i
-                        topsets[j] = iset
-                        break
-                
-
-            umax = 0;
-            for i in range(len(topnodes)):
-                network.update(topsets[i])
-                newnet = copy.deepcopy(this)
-                newnet.budget-- 
-               # if (isize > maxsize):
-               #     maxsize = isize
-               #     maxnode = i
-               #     maxset = iset
+                if isize > maxsize 
+                    maxsize = isize
+                    maxnode = i
+                    maxset = iset
 
             # move node from unselected to selected list
             selected.add(maxnode)
@@ -65,7 +71,19 @@ class MyAgent(Agent):
 
         # return a list to maintain consistency with skeleton code (although returning the set also works)
         return list(selected)
-        
+ 
+    def selectNodes(self, network, t):
+        # select a subset of nodes (up to budget) to seed at current time step t
+        # nodes in the network are selected *** BY THEIR INDEX ***
+
+        bound = network.update(self.greedy(network))
+        network.reverse()
+        ret = self.rec(network, set(range(network.size())), set(), bound, self.budget)
+        print(ret)
+        return ret
+
+       
+   
     def display():
         print "Agent ID ", self.id
 
