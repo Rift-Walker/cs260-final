@@ -21,11 +21,11 @@ class NetworkData:
         budget -= len(selected) if selected else 0
         itr = (x for x in self.prioritylist if x[0] > (selected[-1] if selected else 0))
         for i in range(budget):
-            bound += next(itr)[1]
+            bound -= next(itr)[1]
         return bound
 
-    def add(self, covered, node):
-        return covered | self.nbrdict.get(node)
+    def remove(self, uncovered, node):
+        return uncovered - self.nbrdict.get(node)
 
     def size(self):
         return self.network.size()
@@ -79,25 +79,25 @@ class MyAgent(Agent):
 
         networkdata = NetworkData(network)
         solution = self.greedy(network)
-        maxutil = network.update(solution)
+        globalbound = network.size() - network.update(solution)
         network.reverse()
         tasks = PriorityQueue()
-        tasks.put((0, [], frozenset()))
+        tasks.put((0, [], frozenset(range(network.size()))))
 
         while not tasks.empty():
             task = tasks.get()
             node = task[1]
             for i in range((node[-1] + 1 if node else 0), networkdata.size() - self.budget + (len(node) if node else 0) + 1):
                 newnode = node + [i]
-                newset = networkdata.add(task[2], i)
-                lowerbound = len(newset)
-                if len(newnode) == self.budget and lowerbound > maxutil:
-                    maxutil = lowerbound
+                newset = networkdata.remove(task[2], i)
+                upperbound = len(newset)
+                if len(newnode) == self.budget and upperbound < globalbound:
+                    globalbound = upperbound
                     solution = newnode
                     continue
-                upperbound = networkdata.getBound(lowerbound, newnode, self.budget)
-                if upperbound > maxutil:
-                    tasks.put((-lowerbound, newnode, newset))
+                lowerbound = networkdata.getBound(upperbound, newnode, self.budget)
+                if lowerbound < globalbound:
+                    tasks.put((upperbound, newnode, newset))
        
         print solution
         return solution
