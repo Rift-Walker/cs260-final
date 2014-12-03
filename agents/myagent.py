@@ -12,20 +12,15 @@ from Queue import PriorityQueue
 
 class NetworkData:
     def __init__(self, network):
-        self.network = copy.deepcopy(network)
-        self.nbrdict = {x: frozenset(network.getNeighbors(x)) for x in range(network.size())}
+        self.network = network
         self.scoredict = {x: self.test([x]) for x in range(network.size())}
         self.prioritylist = sorted(self.scoredict.items(), key=operator.itemgetter(1), reverse=True)
     
-    def getBound(self, util, selected, budget):
-        sel = copy.copy(selected)
-        bound = util
-        avail = (budget - (len(selected) if selected else 0))
+    def getBound(self, bound, selected, budget):
+        budget -= len(selected) if selected else 0
         itr = (x for x in self.prioritylist if x[0] > (selected[-1] if selected else 0))
-        for i in range(avail):
+        for i in range(budget):
             bound += next(itr)[1]
-            #last = best[0]
-            #bound += best[1] + 1
         return bound
 
     def test(self, lst):
@@ -36,100 +31,8 @@ class NetworkData:
     def size(self):
         return self.network.size()
     
-class RWLock:
-    def __init__(self):
-        self.write = threading.Semaphore(1)
-        self.mutex = threading.Semaphore(1)
-        self.readcount = 0
-
-    def acquireWrite(self):
-        self.write.acquire()
-
-    def releaseWrite(self):
-        self.write.release()
-
-    def acquireRead(self):
-        self.mutex.acquire()
-        self.readcount += 1
-        if self.readcount == 1:
-            self.write.acquire()
-        self.mutex.release()
-
-    def releaseRead(self):
-        self.mutex.acquire()
-        self.readcount -= 1
-        if self.readcount == 0:
-            self.write.release()
-        self.mutex.release()
-
-class Mutable:
-    def __init__(self, value):
-        self.value = value
-
-    def get(self):
-        return self.value
-
-    def set(self, value):
-        self.value = value
-
-
-class Worker(threading.Thread):
-
-    def __init__(self, tasks, lock, solution, maxutil, networkdata, budget):
-        threading.Thread.__init__(self)
-        self.tasks = tasks
-        self.lock = lock
-        self.solution = solution
-        self.maxutil = maxutil
-        self.networkdata = networkdata
-        self.budget = budget
-        self.daemon = True
-        self.start()
-
-    def run(self):
-        while not self.tasks.empty():
-            item = self.tasks.get()
-            task = item[1]
-            if len(task) == self.budget:
-                util = self.networkdata.test(task)
-                self.lock.acquireRead()
-                if util >= self.maxutil.get():
-                    self.lock.releaseRead()
-                    self.lock.acquireWrite()
-                    if util >= self.maxutil.get():
-                        self.maxutil.set(util)
-                        self.solution.set(task)
-                    self.lock.releaseWrite()
-                else:
-                    self.lock.releaseRead()
-            else:
-                pos = range((task[-1] + 1 if task else 0), self.networkdata.size() - self.budget + (len(task) if task else 0) + 1)
-                for i in pos:
-                    newnode = task + [i]
-                    lowerbound = self.networkdata.test(newnode)
-#                self.lock.acquireRead()
-#                if (lowerbound > self.maxutil.get()):
-#                    self.lock.releaseRead()
-#                    self.lock.acquireWrite()
-                      #  if (lowerbound > self.maxutil.get()):
-                      #      self.maxutil.set(lowerbound)
-                      #      if (len(newnode) == self.budget):
-                      #          self.solution.set(newnode)
-#
-#                    self.lock.releaseWrite()
-#                else:
-#                    self.lock.releaseRead()
-
-                    upperbound = self.networkdata.getBound(lowerbound, newnode, self.budget)
-                    self.lock.acquireRead()
-                    if upperbound > self.maxutil.get():
-                        self.tasks.put((-lowerbound, newnode))
-                    self.lock.releaseRead()
-                        
    
 class MyAgent(Agent):
-
-    NUM_THREADS = 8 
 
     def greedy(self, network):
 
@@ -173,24 +76,27 @@ class MyAgent(Agent):
         # select a subset of nodes (up to budget) to seed at current time step t
         # nodes in the network are selected *** BY THEIR INDEX ***
 
-        #solution = Mutable(self.greedy(network))
-        solution = Mutable([])
-        #bound = Mutable(network.update(solution.get()))
-        bound = Mutable(0)
-        network.reverse()
+        networkdata = NetworkData(network)
+        solution = self.greedy(network)
+        maxutil = networkdata.test(solution)
         tasks = PriorityQueue()
         tasks.put((0, []))
-        lock = RWLock()
-        
-        threads = []
-        for i in range(self.NUM_THREADS):
-            threads.append(Worker(tasks, lock, solution, bound, NetworkData(network), self.budget))
-        for t in threads:
-            t.join()
-        print solution.get()
-        return solution.get()
 
+        while not tasks.empty():
+            node = tasks.get()[1]
+            for i in range((node[-1] + 1 if node else 0), networkdata.size() - self.budget + (len(node) if node else 0) + 1):
+                newnode = node + [i]
+                lowerbound = networkdata.test(newnode)
+                if len(newnode) == self.budget and lowerbound > maxutil:
+                    maxutil = lowerbound
+                    solution = newnode
+                    continue
+                upperbound = networkdata.getBound(lowerbound, newnode, self.budget)
+                if upperbound > maxutil:
+                    tasks.put((-lowerbound, newnode))
        
+        print solution
+        return solution
    
     def display():
         print "Agent ID ", self.id
