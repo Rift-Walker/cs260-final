@@ -30,8 +30,8 @@ class NetworkData:
     def size(self):
         return self.network.size()
 
-    def neighbors(self, node):
-        return 
+    def getNeighbors(self, node):
+        return self.nbrdict.get(node)
    
 class MyAgent(Agent):
 
@@ -51,7 +51,7 @@ class MyAgent(Agent):
  
             # greedily choose a node maximizing number of neighbors not currently covered
             for i in unselected:
-                iset = set(network.getNeighbors(i)) - covered
+                iset = network.getNeighbors(i) - covered
                 isize = len(iset)
 
                 if isize > maxsize:
@@ -78,7 +78,7 @@ class MyAgent(Agent):
         # nodes in the network are selected *** BY THEIR INDEX ***
 
         networkdata = NetworkData(network)
-        solution = self.greedy(network)
+        solution = self.greedy(networkdata)
         maxutil = network.update(solution)
         network.reverse()
         tasks = PriorityQueue()
@@ -99,7 +99,7 @@ class MyAgent(Agent):
                 if upperbound > maxutil:
                     tasks.put((-lowerbound, newnode, newset))
        
-        print solution
+        #print solution
         return solution
    
     def display():
