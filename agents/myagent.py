@@ -13,7 +13,8 @@ from Queue import PriorityQueue
 class NetworkData:
     def __init__(self, network):
         self.network = network
-        self.scoredict = {x: self.test([x]) for x in range(network.size())}
+        self.nbrdict = {x: frozenset(self.network.getNeighbors(x) + [x]) for x in range(network.size())}
+        self.scoredict = {x: len(self.nbrdict.get(x)) for x in range(network.size())}
         self.prioritylist = sorted(self.scoredict.items(), key=operator.itemgetter(1), reverse=True)
     
     def getBound(self, bound, selected, budget):
@@ -23,14 +24,14 @@ class NetworkData:
             bound += next(itr)[1]
         return bound
 
-    def test(self, lst):
-        val = self.network.update(lst)
-        self.network.reverse()
-        return val
+    def add(self, covered, node):
+        return covered | self.nbrdict.get(node)
 
     def size(self):
         return self.network.size()
-    
+
+    def neighbors(self, node):
+        return 
    
 class MyAgent(Agent):
 
@@ -78,22 +79,25 @@ class MyAgent(Agent):
 
         networkdata = NetworkData(network)
         solution = self.greedy(network)
-        maxutil = networkdata.test(solution)
+        maxutil = network.update(solution)
+        network.reverse()
         tasks = PriorityQueue()
-        tasks.put((0, []))
+        tasks.put((0, [], frozenset()))
 
         while not tasks.empty():
-            node = tasks.get()[1]
+            task = tasks.get()
+            node = task[1]
             for i in range((node[-1] + 1 if node else 0), networkdata.size() - self.budget + (len(node) if node else 0) + 1):
                 newnode = node + [i]
-                lowerbound = networkdata.test(newnode)
+                newset = networkdata.add(task[2], i)
+                lowerbound = len(newset)
                 if len(newnode) == self.budget and lowerbound > maxutil:
                     maxutil = lowerbound
                     solution = newnode
                     continue
                 upperbound = networkdata.getBound(lowerbound, newnode, self.budget)
                 if upperbound > maxutil:
-                    tasks.put((-lowerbound, newnode))
+                    tasks.put((-lowerbound, newnode, newset))
        
         print solution
         return solution
