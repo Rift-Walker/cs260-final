@@ -92,6 +92,11 @@ class MyAgent(Agent):
 
         # calculate an initial upper bound based on approximation algorithm
         solution = self.greedy(networkdata)
+
+        # some problems are too big for branch-and-bound
+        if network.size() > 100:
+            return solution
+
         globalbound = network.update(solution)
         network.reverse()
 
